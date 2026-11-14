@@ -26,6 +26,10 @@ Nếu chưa có module được chỉ định:
 
 Nếu file tham chiếu không tồn tại/không đọc được, thông báo chính xác file nào bị thiếu; không giả vờ đã đọc.
 
+## 2.1. Quy chuẩn bảng version Blockchain
+
+Khi module có yêu cầu lưu version bằng chứng Blockchain, bắt buộc đọc và tuân thủ cấu trúc ba nhóm A, B, C được quy định tại mục **3.1 của `BLOCKCHAIN_GLOBAL.md`**. Nhóm A (Shared Blockchain Fields) và nhóm B (Version Management Fields) phải được áp dụng thống nhất; nhóm C (Business-specific Fields) được xác định theo nghiệp vụ của module. Không tự bỏ nhóm, tự tạo một format riêng hoặc suy diễn rằng mọi field phải có giá trị ngay tại thời điểm khởi tạo. Chi tiết tên bảng, field nghiệp vụ, kiểu dữ liệu, constraint, quan hệ và migration phải được xác định trong Module Specification sau khi audit schema hiện tại.
+
 ## 3. Thứ tự ưu tiên và xử lý xung đột
 
 Áp dụng theo thứ tự sau, trong phạm vi không mâu thuẫn với quyết định đã chốt:

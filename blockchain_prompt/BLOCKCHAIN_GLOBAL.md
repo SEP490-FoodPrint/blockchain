@@ -34,6 +34,47 @@ FoodPrint sử dụng mô hình **hybrid: dữ liệu nghiệp vụ off-chain, h
 - **Xác minh:** BE tạo lại hash từ dữ liệu off-chain theo cùng quy tắc và so sánh với hash đã ghi trên Blockchain. So khớp hash chỉ chứng minh dữ liệu hiện tại khớp với bằng chứng đã ghi, **không tự chứng minh dữ liệu ban đầu là đúng sự thật**.
 - Với dữ liệu có thể chỉnh sửa, không tự đặt cơ chế ghi đè/lưu phiên bản; đọc Specification trước và báo cáo nếu còn thiếu quyết định nghiệp vụ quan trọng.
 
+## 3.1. Quy chuẩn bảng version Blockchain
+
+Khi một module cần lưu nhiều phiên bản bằng chứng Blockchain, áp dụng **một bảng version riêng cho nghiệp vụ/module đó**. Không mặc định gom tất cả module vào một bảng BlockchainEvidence tổng hợp và cũng không mặc định tạo thêm bảng ChangeHistory riêng. Bảng version phải có đủ ba nhóm trường dưới đây:
+
+### Nhóm A — Shared Blockchain Fields (bắt buộc)
+
+Đây là nhóm trường dùng chung và phải được chuẩn hóa giữa các bảng version của các module:
+
+- `id`: định danh bản ghi version.
+- `version`: số phiên bản bằng chứng của bản ghi nghiệp vụ.
+- `data_hash`: hash của canonical payload được chứng thực.
+- `tx_hash`: transaction hash tương ứng, nếu transaction đã được gửi và có hash.
+- `block_number`: block chứa transaction, khi receipt cung cấp.
+- `transaction_status`: trạng thái xử lý transaction theo lifecycle thực tế.
+- `created_at`: thời điểm tạo bản ghi version.
+- `created_by`: người tạo/thực hiện thao tác, nếu xác định được theo context và cơ chế hiện có.
+
+### Nhóm B — Version Management Fields (bắt buộc)
+
+Đây là nhóm trường dùng chung để quản lý quan hệ phiên bản và dữ liệu đã được hash:
+
+- `previous_version_id`: tham chiếu version trước đó; version đầu tiên không có version trước nên giá trị có thể `NULL`.
+- `snapshot`: canonical payload hoặc snapshot tối thiểu đủ để tái tạo `data_hash` của version đó; lưu off-chain, không ghi lên Blockchain.
+- `change_reason`: lý do tạo version/cập nhật, có thể `NULL` nếu module không yêu cầu hoặc không có thông tin.
+- `recorded_at`: thời điểm bằng chứng được ghi nhận/xác nhận on-chain; có thể `NULL` trước khi có kết quả phù hợp.
+
+### Nhóm C — Business-specific Fields (bắt buộc)
+
+Mỗi bảng version phải có các field nghiệp vụ cần thiết để liên kết tới bản ghi gốc và xác định dữ liệu được chứng thực. Ví dụ: `delivery_id`, `cooking_batch_id` hoặc `meal_allocation_id`. Tên field, khóa ngoại, kiểu dữ liệu và các field nghiệp vụ bổ sung phải theo schema và Specification của module; không sao chép máy móc các ví dụ này.
+
+### Quy tắc áp dụng
+
+- A và B là format chuẩn dùng chung giữa các bảng version; C thay đổi theo nghiệp vụ. Cả ba nhóm đều phải được xem xét và hiện diện trong thiết kế bảng version của module.
+- “Bắt buộc có field” không đồng nghĩa mọi field phải `NOT NULL` ngay khi tạo row. Các giá trị chỉ phát sinh sau khi gửi transaction/nhận receipt, hoặc chỉ có ở version sau, được phép nullable phù hợp với lifecycle.
+- Mỗi bản ghi nghiệp vụ có chuỗi `version` riêng. Version mới chỉ được tạo khi nội dung/canonical payload được chứng thực thay đổi theo nghiệp vụ; retry gửi transaction cho cùng một version không tự làm tăng version.
+- Không được ghi đè hoặc xóa bằng chứng/version lịch sử đã tạo. Cách lưu và liên kết các lần retry phải bảo toàn khả năng nhận diện transaction của cùng version; không được nhầm retry với một version dữ liệu mới.
+- `snapshot` phải tương ứng chính xác với payload dùng để tạo `data_hash`, đủ để tái tạo và kiểm chứng hash lịch sử. Chỉ lưu hash và transaction reference mà không còn payload tương ứng thì không đủ để tái tạo nội dung đã được chứng thực.
+- Chỉ `data_hash` được ghi on-chain theo nguyên tắc tại mục 3. `snapshot`, version, liên kết version, lý do thay đổi và các thông tin quản lý khác lưu off-chain.
+- Các tên field trên là tên logic chuẩn để thống nhất prompt; khi triển khai phải audit naming convention, kiểu dữ liệu, schema, quan hệ và cơ chế hiện có. Không tự tạo migration nếu module chưa được yêu cầu hoặc schema hiện tại đã có cấu trúc tương đương.
+- Module Specification phải xác định rõ nghiệp vụ nào cần version, dữ liệu nào nằm trong snapshot/payload, cách tạo version, điều kiện tạo lại bằng chứng và cách xác định version hiện hành. Global không tự quyết định các chi tiết nghiệp vụ này.
+
 ## 4. Luồng tích hợp tối thiểu
 
 Luồng tham chiếu, được điều chỉnh theo code và Specification thực tế:
