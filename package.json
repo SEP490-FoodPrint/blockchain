@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "hardhat test",
     "node": "hardhat node",
+    "dev": "hardhat node --hostname 127.0.0.1",
     "deploy:local": "hardhat run --network localhost scripts/deploy.ts",
     "deploy:sepolia": "hardhat run --network sepolia scripts/deploy.ts"
   },
